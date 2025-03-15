@@ -32,3 +32,9 @@ python main.py
 - `/start` - Start chatting with the bot
 - `/help` - Get help
 - `/select` - Select a client api and a model
+
+## TODO
+
+- add other endpoint
+- add sending images, voice, document
+- add MCP client
