@@ -1,0 +1,2 @@
+#Model Context Protocol client
+# This file contains the client side of the MCP protocol. It is responsible for sending the model context to the server and receiving the updated model context from the server.

@@ -1,0 +1,53 @@
+import aiohttp
+from typing import List
+from .api import LLMClient
+
+
+class OllamaClient(LLMClient):
+    def __init__(self, base_url: str = "http://localhost:11434"):
+        self.base_url = base_url
+        self._models = []
+
+    @property
+    def provider_name(self) -> str:
+        return "ollama"
+
+    def get_available_models(self) -> List[str]:
+        return self._models if self._models else ["llama2", "mistral", "gemma"]
+
+    async def _fetch_models(self) -> List[str]:
+        """Получение списка доступных моделей с Ollama сервера"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.base_url}/api/tags") as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        self._models = [model['name'] for model in data['models']]
+                        return self._models
+        except Exception as e:
+            print(f"Ошибка при получении списка моделей: {e}")
+            return ["llama2", "mistral", "gemma"]
+
+    async def generate_response(self, prompt: str, model: str) -> str:
+        """Генерация ответа от модели"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False
+                }
+                
+                async with session.post(
+                    f"{self.base_url}/api/generate",
+                    json=payload
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return data.get('response', '')
+                    else:
+                        error_text = await response.text()
+                        raise Exception(f"Ошибка API: {error_text}")
+
+        except Exception as e:
+            raise Exception(f"Ошибка при генерации ответа: {str(e)}")
