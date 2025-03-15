@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 
+
 class LLMClient(ABC):
     @abstractmethod
     def get_available_models(self) -> List[str]:

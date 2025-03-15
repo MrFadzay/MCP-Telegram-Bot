@@ -5,7 +5,6 @@ from telegram.ext import (
 from dotenv import load_dotenv
 import os
 import logging
-import asyncio
 
 from bot.llm_utils import LLMSelector
 
@@ -38,91 +37,140 @@ class TelegramBot:
         self.application.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND, self.handle_message))
 
-    async def select_provider_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def select_provider_command(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды выбора провайдера"""
-        providers = await self.llm_selector.get_available_providers()
-        keyboard = []
-        for provider in providers:
-            keyboard.append([InlineKeyboardButton(
-                provider.upper(), callback_data=f"provider_{provider}")])
+        if update.message:
+            providers = await self.llm_selector.get_available_providers()
+            keyboard = []
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text('Выберите провайдера:', reply_markup=reply_markup)
+            for provider in providers:
+                keyboard.append([InlineKeyboardButton(
+                    provider.upper(), callback_data=f"provider_{provider}")])
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                'Выберите провайдера:', reply_markup=reply_markup)
+        else:
+            logger.warning(f"Received update without message: {update}")
+            return
 
     async def show_models(self, update: Update, provider: str):
         """Показать доступные модели для выбранного провайдера"""
-        models = await self.llm_selector.get_available_models(provider)
-        keyboard = []
-        for model in models:
-            keyboard.append([InlineKeyboardButton(
-                model, callback_data=f"model_{model}")])
+        if update.callback_query:
+            models = await self.llm_selector.get_available_models(provider)
+            keyboard = []
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.callback_query.message.edit_text(
-            f'Выберите модель для {provider.upper()}:',
-            reply_markup=reply_markup
-        )
+            if models:
+                for model in models:
+                    keyboard.append([InlineKeyboardButton(
+                        model, callback_data=f"model_{model}")])
 
-    async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.callback_query.edit_message_text(
+                    f'Выберите модель для {provider.upper()}:',
+                    reply_markup=reply_markup)
+            else:
+                await update.callback_query.edit_message_text(
+                    f"Нет доступных моделей для провайдера {provider.upper()}")
+        elif update.callback_query:
+            logger.warning(f"Получено обновление без callback_query: {update}")
+            return
+
+    async def button_callback(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик нажатий на кнопки"""
-        query = update.callback_query
-        await query.answer()
+        if update.callback_query:
+            query = update.callback_query
+            await query.answer()
 
-        data = query.data
-        if data.startswith("provider_"):
-            provider = data.split("_")[1]
-            self.llm_selector.set_provider(provider)
-            await self.show_models(update, provider)
+            data = query.data
+            if data.startswith("provider_"):
+                provider = data.split("_")[1]
+                self.llm_selector.set_provider(provider)
+                await self.show_models(update, provider)
 
-        elif data.startswith("model_"):
-            model = data.split("_")[1]
-            # await the async function
-            await self.llm_selector.set_model(model)
-            config = self.llm_selector.get_current_config()
-            await query.message.edit_text(
-                f"Выбрано: провайдер {config.provider_name.upper()}, модель {config.model_name}"
-            )
+            elif data.startswith("model_"):
+                model = data.split("_")[1]
+                await self.llm_selector.set_model(model)
+                config = self.llm_selector.get_current_config()
 
-    async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+                await query.edit_message_text(
+                    f"Выбрано: провайдер {config.provider_name.upper()}, модель {config.model_name}"
+                )
+
+        else:
+            logger.warning(f"Получено обновление без callback_query: {update}")
+            return
+
+    async def help_command(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды /help"""
-        help_text = """
-Доступные команды:
-/start - Начать разговор
-/help - Показать это сообщение
-/select - Выбрать провайдера и модель LLM
-        """
-        await update.message.reply_text(help_text)
+        if update.message:
+            help_text = """
+    Доступные команды:
+    /start - Начать разговор
+    /help - Показать это сообщение
+    /select - Выбрать провайдера и модель LLM
+            """
+            await update.message.reply_text(help_text)
+        else:
+            logger.warning(f"Получено обновление без сообщения: {update}")
+            return
 
-    async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def start_command(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды /start"""
-        welcome_text = """
-    Привет! Я бот с поддержкой различных LLM моделей.
-    
-    Для начала работы выберите провайдера и модель с помощью команды /select
-    Для просмотра доступных команд используйте /help
-        """
-        await update.message.reply_text(welcome_text)
+        if update.message:
+            welcome_text = """
+        Привет! Я бот с поддержкой различных LLM моделей.
+        Для начала работы выберите провайдера и
+        модель с помощью команды /select
+        Для просмотра доступных команд используйте /help
+            """
+            await update.message.reply_text(welcome_text)
+        else:
+            logger.warning(f"Получено обновление без сообщения: {update}")
+            return
 
-    async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def handle_message(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик текстовых сообщений"""
-        try:
-            config = self.llm_selector.get_current_config()
-            if not config:
-                await update.message.reply_text(
-                    "Пожалуйста, сначала выберите провайдера и модель с помощью команды /select"
-                )
-                return
-
-            user_message = update.message.text
+        if update.message:
             try:
-                response = await self.llm_selector.generate_response(user_message)
-                await update.message.reply_text(response)
-            except Exception as e:
-                logger.error(f"Ошибка при генерации ответа: {str(e)}")
-                await update.message.reply_text(
-                    "Произошла ошибка при генерации ответа. Попробуйте выбрать другую модель или повторить позже."
-                )
+                config = self.llm_selector.get_current_config()
+                if not config:
+                    await update.message.reply_text(
+                        "Пожалуйста, сначала выберите провайдера и "
+                        "модель с помощью команды /select"
+                    )
+                    return
 
-        except Exception as e:
-            logger.error(f"Ошибка при обработке сообщения: {str(e)}")
-            await update.message.reply_text("Произошла ошибка при обработке вашего сообщения.")
+                user_message = update.message.text
+                try:
+                    response = await self.llm_selector.generate_response(
+                        user_message
+                    )
+                    if response:
+                        await update.message.reply_text(response)
+                    else:
+                        logger.error(
+                            f"generate_response вернул None for message: {user_message}")
+                        await update.message.reply_text(
+                            "Произошла внутренняя ошибка. "
+                            "Повторите попытку позже."
+                        )
+                except Exception as e:
+                    logger.error(f"Ошибка при генерации ответа: {str(e)}")
+                    await update.message.reply_text(
+                        "Произошла ошибка при генерации ответа. "
+                        "Попробуйте выбрать другую модель или повторить позже."
+                    )
+
+            except Exception as e:
+                logger.error(f"Ошибка при обработке сообщения: {str(e)}")
+                await update.message.reply_text(
+                    "Произошла ошибка при обработке вашего сообщения.")
+        else:
+            logger.warning(f"Получено обновление без сообщения: {update}")
+            return

@@ -6,7 +6,7 @@ from .api import LLMClient
 class OllamaClient(LLMClient):
     def __init__(self, base_url: str = "http://localhost:11434"):
         self.base_url = base_url
-        self._models = []
+        self._models: List[str] = []
 
     @property
     def provider_name(self) -> str:
@@ -20,10 +20,14 @@ class OllamaClient(LLMClient):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"{self.base_url}/api/tags") as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        self._models = [model['name'] for model in data['models']]
-                        return self._models
+                    if response.status != 200:
+                        return ["llama2", "mistral", "gemma"]
+                    data = await response.json()
+                    self._models = [
+                        model['name'] for model in data['models']
+                    ]
+                    return self._models
+
         except Exception as e:
             print(f"Ошибка при получении списка моделей: {e}")
             return ["llama2", "mistral", "gemma"]
@@ -37,17 +41,16 @@ class OllamaClient(LLMClient):
                     "prompt": prompt,
                     "stream": False
                 }
-                
+
                 async with session.post(
                     f"{self.base_url}/api/generate",
                     json=payload
                 ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return data.get('response', '')
-                    else:
+                    if response.status != 200:
                         error_text = await response.text()
                         raise Exception(f"Ошибка API: {error_text}")
+                    data = await response.json()
+                    return data.get('response', '')
 
         except Exception as e:
             raise Exception(f"Ошибка при генерации ответа: {str(e)}")
