@@ -1,10 +1,11 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, File
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
     MessageHandler, filters, ContextTypes)
 from dotenv import load_dotenv
 import os
 import logging
+import tempfile
 
 from bot.llm_utils import LLMSelector
 
@@ -36,6 +37,8 @@ class TelegramBot:
             CallbackQueryHandler(self.button_callback))
         self.application.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND, self.handle_message))
+        self.application.add_handler(MessageHandler(
+            filters.PHOTO, self.handle_photo))  # Added photo handler
 
     async def select_provider_command(
             self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -173,4 +176,53 @@ class TelegramBot:
                     "Произошла ошибка при обработке вашего сообщения.")
         else:
             logger.warning(f"Получено обновление без сообщения: {update}")
+            return
+
+    async def handle_photo(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработчик входящих фотографий"""
+        if update.message and update.message.photo:
+            try:
+                config = self.llm_selector.get_current_config()
+                if not config:
+                    await update.message.reply_text(
+                        "Пожалуйста, сначала выберите провайдера и "
+                        "модель с помощью команды /select"
+                    )
+                    return
+
+                photo_file = await update.message.photo[-1].get_file()
+                user_caption = update.message.caption
+
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    await photo_file.download_to_drive(temp_file.name)
+                    file_path = temp_file.name
+
+                try:
+                    response = await self.llm_selector.generate_response_with_image(
+                        file_path, user_caption
+                    )
+                    if response:
+                        await update.message.reply_text(response)
+                    else:
+                        logger.error(
+                            f"generate_response_with_image returned None for file: {file_path}")
+                        await update.message.reply_text(
+                            "Произошла внутренняя ошибка при обработке изображения. "
+                            "Повторите попытку позже."
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"Ошибка при генерации ответа для фото: {str(e)}")
+                    await update.message.reply_text(
+                        "Произошла ошибка при генерации ответа для фото. "
+                        "Попробуйте выбрать другую модель или повторить позже."
+                    )
+                finally:
+                    os.unlink(file_path)
+            except Exception as e:
+                logger.error(f"Ошибка при обработке фотографии: {str(e)}")
+                await update.message.reply_text(
+                    "Произошла ошибка при обработке вашего фото.")
+        else:
+            logger.warning(f"Получено обновление без фото: {update}")
             return

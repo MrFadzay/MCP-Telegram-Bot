@@ -13,6 +13,10 @@ class LLMClient(ABC):
         """Генерирует ответ используя выбранную модель"""
         pass
 
+    async def generate_response_with_image(self, file_path:str, model: str) -> str:
+      """Generate response with image, may not be implemented"""
+      raise NotImplementedError("This provider not implemented response with image")
+
     @property
     @abstractmethod
     def provider_name(self) -> str:

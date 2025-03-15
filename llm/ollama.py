@@ -1,6 +1,9 @@
 import aiohttp
 from typing import List
 from .api import LLMClient
+import os
+import base64
+import json
 
 
 class OllamaClient(LLMClient):
@@ -54,3 +57,42 @@ class OllamaClient(LLMClient):
 
         except Exception as e:
             raise Exception(f"Ошибка при генерации ответа: {str(e)}")
+
+    async def generate_response_with_image(
+            self, file_path: str, model: str, user_prompt: str = None) -> str:
+        """Generate a response from the Ollama model with an image."""
+        try:
+            async with aiohttp.ClientSession() as session:
+
+                with open(file_path, "rb") as image_file:
+                    encoded_string = base64.b64encode(
+                        image_file.read()).decode('utf-8')
+
+                # Use user_prompt if provided, otherwise use a default prompt
+                prompt_for_model = user_prompt if user_prompt else "What is in this picture?"
+
+                payload = {
+                    "model": model,
+                    "prompt": prompt_for_model,
+                    "images": [encoded_string],
+                    "stream": False
+                }
+
+                async with session.post(
+                        f"{self.base_url}/api/generate",
+                        json=payload
+                ) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise Exception(f"API error: {error_text}")
+
+                    try:
+                        data = await response.json()
+                        if 'error' in data:
+                            raise Exception(f"Ollama error: {data['error']}")
+                        return data.get('response', '')
+                    except json.JSONDecodeError:
+                        raise Exception(f"Failed to decode Ollama response as JSON: {await response.text()}")
+
+        except Exception as e:
+            raise Exception(f"Error generating response with image: {str(e)}")

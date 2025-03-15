@@ -2,6 +2,7 @@ from typing import Optional, Dict, Type, List
 from dataclasses import dataclass
 from llm.api import LLMClient
 import asyncio
+import os
 
 
 @dataclass
@@ -81,3 +82,15 @@ class LLMSelector:
 
         provider = self._provider_instances[self.current_provider]
         return await provider.generate_response(prompt, self.current_model)
+
+    async def generate_response_with_image(
+            self, file_path: str, user_prompt: str = None) -> str:
+        """Генерировать ответ, используя текущую конфигурацию и изображение"""
+        if not self.current_provider or not self.current_model:
+            raise ValueError("Провайдер или модель не выбраны")
+
+        provider = self._provider_instances[self.current_provider]
+        if not hasattr(provider, 'generate_response_with_image'):
+            raise NotImplementedError(
+                f'Provider {self.current_provider} does not support image processing')
+        return await provider.generate_response_with_image(file_path, self.current_model, user_prompt)

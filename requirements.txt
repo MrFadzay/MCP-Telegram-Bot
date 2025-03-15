@@ -2,3 +2,4 @@ python-telegram-bot==22.0
 python-dotenv
 aiohttp
 google-generativeai
+Pillow
