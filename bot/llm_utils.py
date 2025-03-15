@@ -2,7 +2,6 @@ from typing import Optional, Dict, Type, List
 from dataclasses import dataclass
 from llm.api import LLMClient
 import asyncio
-import os
 
 
 @dataclass
