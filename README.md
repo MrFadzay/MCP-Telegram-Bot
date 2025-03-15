@@ -30,5 +30,5 @@ python main.py
 ## Commands
 
 - `/start` - Start chatting with the bot
-- `/model` - Select a model
-- `/client` - Select a client api
+- `/help` - Get help
+- `/select` - Select a client api and a model
