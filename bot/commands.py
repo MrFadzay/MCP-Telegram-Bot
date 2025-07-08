@@ -22,7 +22,8 @@ class CommandHandlers:
             """
             await update.message.reply_text(welcome_text)
         else:
-            logger.warning(f"Получено обновление без сообщения: {update}")
+            logger.warning(
+                f"Получено обновление без сообщения: {update}")
             return
 
     async def help_command(
@@ -37,14 +38,17 @@ class CommandHandlers:
             """
             await update.message.reply_text(help_text)
         else:
-            logger.warning(f"Получено обновление без сообщения: {update}")
+            logger.warning(
+                f"Получено обновление без сообщения: {update}")
             return
 
     async def select_provider_command(
             self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды выбора провайдера"""
         if update.message:
-            providers = await self.llm_selector.get_available_providers()
+            providers = await (
+                self.llm_selector.provider_manager.get_available_providers()
+            )
             keyboard = []
 
             for provider in providers:
@@ -55,5 +59,6 @@ class CommandHandlers:
             await update.message.reply_text(
                 'Выберите провайдера:', reply_markup=reply_markup)
         else:
-            logger.warning(f"Received update without message: {update}")
+            logger.warning(
+                f"Получено обновление без сообщения: {update}")
             return

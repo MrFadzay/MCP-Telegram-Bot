@@ -1,5 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional, Union
+from llm.shared_types import ToolCall, ToolInfo
+
+
+LLMResponse = Union[str, ToolCall]
 
 
 class LLMClient(ABC):
@@ -9,13 +13,25 @@ class LLMClient(ABC):
         pass
 
     @abstractmethod
-    async def generate_response(self, prompt: str, model: str) -> str:
+    async def generate_response(
+        self, prompt: str, model: str, tools: List[ToolInfo]
+    ) -> LLMResponse:
         """Генерирует ответ используя выбранную модель"""
         pass
 
-    async def generate_response_with_image(self, file_path:str, model: str) -> str:
-      """Generate response with image, may not be implemented"""
-      raise NotImplementedError("This provider not implemented response with image")
+    async def generate_response_with_image(
+            self, file_path: str, model: str,
+            user_prompt: Optional[str] = None) -> str:
+        """Генерирует ответ с изображением, может быть не реализован"""
+        raise NotImplementedError(
+            "Этот провайдер не реализовал ответ с изображением")
+
+    async def _fetch_models(self):
+        """
+        Получает доступные модели для провайдера.
+        Этот метод может быть реализован подклассами при необходимости.
+        """
+        pass
 
     @property
     @abstractmethod

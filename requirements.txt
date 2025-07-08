@@ -3,3 +3,8 @@ python-dotenv
 aiohttp
 google-generativeai
 Pillow
+httpx
+openai
+nest_asyncio
+jsonrpyc
+httpx-sse

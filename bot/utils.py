@@ -14,7 +14,7 @@ async def download_photo(update: Update) -> str:
             await photo_file.download_to_drive(temp_file.name)
             return temp_file.name
     except Exception as e:
-        logger.error(f"Error downloading photo: {e}")
+        logger.error(f"Ошибка при скачивании фото: {e}")
         raise
 
 
@@ -23,5 +23,4 @@ def cleanup_temp_file(file_path: str):
     try:
         os.unlink(file_path)
     except Exception as e:
-        logger.error(f"Error deleting temp file {file_path}: {e}")
-
+        logger.error(f"Ошибка при удалении временного файла {file_path}: {e}")

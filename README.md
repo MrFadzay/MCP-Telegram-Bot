@@ -1,40 +1,113 @@
 # MCP Telegram Bot
 
-Telegram bot with support for various LLM models and Model Context Protocol client
+Telegram-бот с расширенной поддержкой различных моделей больших языковых моделей (LLM) и интеграцией с Model Context Protocol (MCP) для динамического расширения функционала.
 
-## Installation
+## Оглавление
 
-1. Clone the repository
-```bash
-git clone <repository-url>
+-   [Функционал](#функционал)
+-   [Установка](#установка)
+-   [Конфигурация MCP серверов](#конфигурация-mcp-серверов)
+-   [Команды](#команды)
+-   [TODO](#todo)
+-   [Вклад](#вклад)
+-   [Лицензия](#лицензия)
+-   [Контакты](#контакты)
+
+## Функционал
+
+*   **Поддержка различных LLM:** Легко переключайтесь между OpenAI, Google Gemini, Ollama и другими моделями.
+*   **Интеграция с Model Context Protocol (MCP):** Расширяйте возможности бота, подключая внешние MCP сервера, предоставляющие специализированные инструменты и ресурсы.
+*   **Обработка изображений:** Бот может обрабатывать изображения, отправленные пользователями.
+*   **Гибкая конфигурация:** Все настройки, включая токены API и параметры LLM, управляются через файл `.env`.
+
+## Установка
+
+Для запуска бота выполните следующие шаги:
+
+1.  **Клонируйте репозиторий:**
+    ```bash
+    git clone https://github.com/MrFadzay/MCP-Telegram-Bot.git
+    cd MCP-Telegram-Bot
+    ```
+
+2.  **Создайте и активируйте виртуальное окружение:**
+
+    *   **Windows:**
+        ```bash
+        python -m venv venv
+        .\venv\Scripts\activate
+        ```
+    *   **Linux/macOS:**
+        ```bash
+        python3 -m venv venv
+        source venv/bin/activate
+        ```
+
+3.  **Установите зависимости:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Настройте переменные окружения:**
+    *   Создайте файл `.env` в корневой директории проекта, скопировав содержимое из `.env.example`.
+    *   Добавьте ваш токен Telegram бота (`TELEGRAM_BOT_TOKEN`) и другие необходимые ключи API для LLM (например, `OPENAI_API_KEY`, `GOOGLE_API_KEY`).
+
+5.  **Запустите бота:**
+    ```bash
+    python main.py
+    ```
+
+## Конфигурация MCP серверов
+
+Model Context Protocol (MCP) позволяет расширять функционал бота, подключая внешние сервера, которые предоставляют дополнительные инструменты и ресурсы.
+
+Для настройки MCP серверов отредактируйте файл `config/mcp_servers.json`.
+
+Пример `config/mcp_servers.json`:
+
+```json
+{
+  "mcpServers": {
+    "github_api": {
+      "url": "http://localhost:8000/github",
+      "api_key": "your_github_api_key_if_needed"
+    },
+    "browser_server": {
+      "url": "https://api.example.com/browser"
+    }
+  }
+}
 ```
 
-2. Create a virtual environment and activate it
-```bash
-python -m venv venv
-.\venv\Scripts\activate
-```
+*   Ключи (например, `github_api`, `browser_server`) — это уникальные имена, которые будут использоваться в командах бота для обращения к конкретному MCP серверу.
+*   `url` — адрес MCP сервера.
+*   `api_key` (опционально) — ключ API, если сервер требует аутентификации.
 
-3. Install dependencies
-```bash
-pip install -r requirements.txt
-```
+## Команды
 
-4. Create a `.env` file based on `.env.example` and add your bot token
-
-5. Run the bot
-```bash
-python main.py
-```
-
-## Commands
-
-- `/start` - Start chatting with the bot
-- `/help` - Get help
-- `/select` - Select a client api and a model
+*   `/start` - Начать общение с ботом и получить приветственное сообщение.
+*   `/help` - Отобразить список доступных команд и краткое описание.
+*   `/select` - Выбрать активный API клиент (LLM провайдера) и модель для общения.
 
 ## TODO
 
-- add other endpoint
-- add sending images, voice, document
-- add MCP client
+*   Добавить поддержку других конечных точек (endpoints)
+*   Улучшить обработку ошибок и логирование
+*   Добавить поддержку голосовых сообщений и документов (изображения уже поддерживаются)
+*   Расширить функциональность MCP клиента и инструментов
+*   Реализовать сохранение информации (например, истории чатов, пользовательских настроек) в базе данных.
+
+## Вклад
+
+Мы приветствуем любой вклад в развитие проекта! Если вы хотите помочь, пожалуйста, ознакомьтесь с файлом `CONTRIBUTING.md` (если он будет создан) или просто создайте Pull Request.
+
+## Лицензия
+
+Этот проект распространяется под лицензией [MIT License](LICENSE).
+
+## Контакты
+
+Если у вас есть вопросы или предложения, вы можете связаться с разработчиком:
+
+*   GitHub: [MrFadzay](https://github.com/MrFadzay)
+*   Telegram: [@Fadzay](https://t.me/Fadzay)

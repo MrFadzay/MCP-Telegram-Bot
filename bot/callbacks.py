@@ -13,13 +13,13 @@ class CallbackHandlers:
     async def show_models(self, update: Update, provider: str):
         """Показать доступные модели для выбранного провайдера"""
         if update.callback_query:
-            models = await self.llm_selector.get_available_models(provider)
+            models = await self.llm_selector.provider_manager.get_available_models(provider)
             keyboard = []
 
             if models:
                 for model in models:
                     keyboard.append([InlineKeyboardButton(
-                        model, callback_data=f"model_{model}")])
+                        model, callback_data=f"model_select_{model}")])
 
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.callback_query.edit_message_text(
@@ -42,17 +42,23 @@ class CallbackHandlers:
             data = query.data
             if data.startswith("provider_"):
                 provider = data.split("_")[1]
-                self.llm_selector.set_provider(provider)
+                self.llm_selector.provider_manager.set_provider(provider)
                 await self.show_models(update, provider)
 
-            elif data.startswith("model_"):
-                model = data.split("_")[1]
-                await self.llm_selector.set_model(model)
-                config = self.llm_selector.get_current_config()
+            elif data.startswith("model_select_"):
+                model = data.split("model_select_")[1]
+                await self.llm_selector.provider_manager.set_model(model)
+                config = self.llm_selector.provider_manager.get_current_config()
 
-                await query.edit_message_text(
-                    f"Выбрано: провайдер {config.provider_name.upper()}, модель {config.model_name}"
-                )
+                if config:
+                    await query.edit_message_text(
+                        f"Выбрано: провайдер {config.provider_name.upper()}, "
+                        f"модель {config.model_name}"
+                    )
+                else:
+                    await query.edit_message_text(
+                        "Не удалось получить текущую конфигурацию модели."
+                    )
 
         else:
             logger.warning(f"Получено обновление без callback_query: {update}")
