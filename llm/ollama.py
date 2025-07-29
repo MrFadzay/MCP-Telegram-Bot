@@ -1,5 +1,5 @@
 import aiohttp
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from .api import LLMClient, LLMResponse, ToolCall
 from bot.llm_utils import ToolInfo
 import base64
@@ -42,7 +42,8 @@ class OllamaClient(LLMClient):
             return ["llama2", "mistral", "gemma"]
 
     async def generate_response(
-        self, prompt: str, model: str, tools: List[ToolInfo]
+        self, prompt: str, model: str, tools: List[ToolInfo],
+        conversation_history: Optional[List[Dict[str, Any]]] = None
     ) -> LLMResponse:
         """Генерация ответа от модели"""
         try:
@@ -65,7 +66,16 @@ class OllamaClient(LLMClient):
                         "\nВ противном случае, ответьте обычной строкой."
                     )
 
-                full_prompt = f"{prompt}{tool_prompt}"
+                # Добавляем историю разговора в промпт
+                history_prompt = ""
+                if conversation_history:
+                    history_prompt = "\n\nИстория разговора:\n"
+                    for msg in conversation_history[:-5]:  # Берем последние 5 сообщений для контекста
+                        role = "Пользователь" if msg["role"] == "user" else "Ассистент"
+                        history_prompt += f"{role}: {msg['content']}\n"
+                    history_prompt += "\nТекущий запрос:\n"
+
+                full_prompt = f"{history_prompt}{prompt}{tool_prompt}"
 
                 payload = {
                     "model": model,

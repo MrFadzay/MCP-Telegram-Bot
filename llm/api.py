@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict, Any
 from llm.shared_types import ToolCall, ToolInfo
 
 
@@ -14,7 +14,8 @@ class LLMClient(ABC):
 
     @abstractmethod
     async def generate_response(
-        self, prompt: str, model: str, tools: List[ToolInfo]
+        self, prompt: str, model: str, tools: List[ToolInfo], 
+        conversation_history: Optional[List[Dict[str, Any]]] = None
     ) -> LLMResponse:
         """Генерирует ответ используя выбранную модель"""
         pass

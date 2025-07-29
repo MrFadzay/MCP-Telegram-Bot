@@ -6,6 +6,7 @@ import asyncio
 import json
 from bot.provider_manager import ProviderManager
 from bot.tool_manager import ToolManager
+from bot.services.history_service import HistoryService
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ class LLMSelector:
     def __init__(self):
         self.provider_manager = ProviderManager()
         self.tool_manager = ToolManager()
+        self.history_service = HistoryService()
 
     async def get_available_mcp_tools(self) -> List[ToolInfo]:
         """
@@ -45,15 +47,30 @@ class LLMSelector:
         """Закрывает все MCP клиенты и отменяет связанные задачи stderr."""
         await self.tool_manager.close_mcp_clients()
 
-    async def generate_response(self, prompt: str) -> LLMResponse:
+    async def generate_response(self, prompt: str, user_id: Optional[int] = None) -> LLMResponse:
         """Генерировать ответ используя текущую конфигурацию"""
         if not self.provider_manager.current_provider or not self.provider_manager.current_model:
             raise ValueError("Провайдер или модель не выбраны")
 
         provider = self.provider_manager.get_provider_instance(self.provider_manager.current_provider)
 
+        # Сохраняем пользовательское сообщение в историю
+        if user_id:
+            await self.history_service.save_message(
+                user_id=user_id,
+                message_text=prompt,
+                message_type="user"
+            )
         
         available_tools = await self.get_available_mcp_tools()
+
+        # Получаем историю разговора
+        conversation_history = []
+        if user_id:
+            conversation_history = await self.history_service.get_conversation_history(
+                user_id=user_id,
+                limit=10  # Ограничиваем количество сообщений для контекста
+            )
 
         # --- Start of multi-step tool call logic ---
         MAX_TOOL_CALL_ITERATIONS = 3
@@ -64,7 +81,8 @@ class LLMSelector:
             # Всегда передаем available_tools провайдеру.generate_response
             # Ожидается, что LLM поймет, как их использовать.
             response = await provider.generate_response(
-                current_prompt, self.provider_manager.current_model, available_tools
+                current_prompt, self.provider_manager.current_model, available_tools,
+                conversation_history if i == 0 else None  # Передаем историю только в первой итерации
             )
 
             if isinstance(response, ToolCall):
@@ -126,16 +144,45 @@ class LLMSelector:
                     continue
             else:
                 # Если LLM не запросил инструмент, это окончательный ответ
+                # Сохраняем ответ ассистента в историю
+                if user_id:
+                    response_text = response.text if hasattr(response, 'text') else str(response)
+                    await self.history_service.save_message(
+                        user_id=user_id,
+                        message_text=response_text,
+                        message_type="assistant",
+                        metadata={
+                            "provider": self.provider_manager.current_provider,
+                            "model": self.provider_manager.current_model,
+                            "tool_calls": len(tool_output_history)
+                        }
+                    )
                 return response
 
         # Если мы достигли этой точки, это означает, что было достигнуто
         # максимальное количество итераций вызова инструментов, и LLM
         # все еще не предоставил окончательный ответ.
-        return LLMResponse(
+        final_response = LLMResponse(
             text="Я достиг максимального количества итераций для вызова "
                  "инструментов и не смог сформировать окончательный ответ. "
                  "Пожалуйста, переформулируйте ваш запрос или попробуйте позже."
         )
+        
+        # Сохраняем ответ ассистента в историю
+        if user_id:
+            response_text = final_response.text if hasattr(final_response, 'text') else str(final_response)
+            await self.history_service.save_message(
+                user_id=user_id,
+                message_text=response_text,
+                message_type="assistant",
+                metadata={
+                    "provider": self.provider_manager.current_provider,
+                    "model": self.provider_manager.current_model,
+                    "tool_calls": len(tool_output_history)
+                }
+            )
+        
+        return final_response
         # --- Конец логики многошагового вызова инструмента ---
 
     async def generate_response_with_image(

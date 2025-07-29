@@ -2,6 +2,10 @@ from typing import Dict, Type, List, Optional
 from llm.api import LLMClient
 from dataclasses import dataclass
 import asyncio
+import logging
+from .services.user_service import UserService
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ModelConfig:
@@ -47,15 +51,21 @@ class ProviderManager:
 
         return provider_instance.get_available_models()
 
-    def set_provider(self, provider: str) -> None:
-        """Установить текущего провайдера"""
+    async def set_provider(self, provider: str, user_id: Optional[int] = None) -> None:
+        """Установить текущего провайдера и сохранить в БД"""
         if provider not in self._provider_instances:
             raise ValueError(f"Неподдерживаемый провайдер: {provider}")
+        
         self.current_provider = provider
         self.current_model = None
+        
+        # Сохранить в БД если указан user_id
+        if user_id:
+            await UserService.update_llm_settings(user_id, provider=provider)
+            logger.info(f"Saved provider {provider} for user {user_id}")
 
-    async def set_model(self, model_name: str) -> None:
-        """Установить текущую модель"""
+    async def set_model(self, model_name: str, user_id: Optional[int] = None) -> None:
+        """Установить текущую модель и сохранить в БД"""
         if not self.current_provider:
             raise ValueError("Сначала необходимо выбрать провайдера")
 
@@ -63,7 +73,46 @@ class ProviderManager:
         if model_name not in available_models:
             raise ValueError(f"Модель {model_name} недоступна для провайдера "
                              f"{self.current_provider}")
+        
         self.current_model = model_name
+        
+        # Сохранить в БД если указан user_id
+        if user_id:
+            await UserService.update_llm_settings(user_id, model=model_name)
+            logger.info(f"Saved model {model_name} for user {user_id}")
+
+    async def load_user_settings(self, user_id: int) -> bool:
+        """Загрузить настройки пользователя из БД"""
+        try:
+            user_settings = await UserService.get_user_settings(user_id)
+            if not user_settings:
+                logger.info(f"No settings found for user {user_id}, using defaults")
+                return False
+            
+            provider = user_settings.get("llm_provider")
+            model = user_settings.get("llm_model")
+            
+            if provider and provider in self._provider_instances:
+                self.current_provider = provider
+                logger.info(f"Loaded provider {provider} for user {user_id}")
+                
+                if model:
+                    # Проверяем, что модель доступна
+                    available_models = await self.get_available_models(provider)
+                    if model in available_models:
+                        self.current_model = model
+                        logger.info(f"Loaded model {model} for user {user_id}")
+                    else:
+                        logger.warning(f"Model {model} not available for provider {provider}, using default")
+                
+                return True
+            else:
+                logger.warning(f"Provider {provider} not available, using defaults")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to load user settings for {user_id}: {e}")
+            return False
 
     def get_current_config(self) -> Optional[ModelConfig]:
         """Получить текущую конфигурацию"""

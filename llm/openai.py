@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from llm.api import LLMClient, LLMResponse
 from llm.shared_types import ToolCall, ToolInfo
 from openai import AsyncOpenAI
@@ -39,8 +39,19 @@ class OpenAIClient(LLMClient):
     def get_available_models(self) -> List[str]:
         return self._available_models
 
-    async def generate_response(self, prompt: str, model: str, tools: List[ToolInfo]) -> LLMResponse:
-        messages = [{"role": "user", "content": prompt}]
+    async def generate_response(self, prompt: str, model: str, tools: List[ToolInfo], 
+                               conversation_history: Optional[List[Dict[str, Any]]] = None) -> LLMResponse:
+        # Формируем сообщения с учетом истории
+        messages = []
+        if conversation_history:
+            for msg in conversation_history:
+                role = msg["role"]
+                if role == "assistant":
+                    role = "assistant"
+                messages.append({"role": role, "content": msg["content"]})
+        
+        # Добавляем текущий prompt
+        messages.append({"role": "user", "content": prompt})
         try:
             # Преобразование ToolInfo в формат, понятный OpenAI
             tools_schema = []

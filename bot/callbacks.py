@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.llm_utils import LLMSelector
+from bot.services.user_service import UserService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,24 +41,31 @@ class CallbackHandlers:
             await query.answer()
 
             data = query.data
+            if not data:
+                return
+                
             if data.startswith("provider_"):
                 provider = data.split("_")[1]
-                self.llm_selector.provider_manager.set_provider(provider)
+                user_id = query.from_user.id
+                await self.llm_selector.provider_manager.set_provider(provider, user_id)
                 await self.show_models(update, provider)
 
             elif data.startswith("model_select_"):
                 model = data.split("model_select_")[1]
-                await self.llm_selector.provider_manager.set_model(model)
+                user_id = query.from_user.id
+                await self.llm_selector.provider_manager.set_model(model, user_id)
                 config = self.llm_selector.provider_manager.get_current_config()
 
                 if config:
                     await query.edit_message_text(
-                        f"Выбрано: провайдер {config.provider_name.upper()}, "
-                        f"модель {config.model_name}"
+                        f"✅ Выбрано и сохранено: провайдер {config.provider_name.upper()}, "
+                        f"модель {config.model_name}\n\n"
+                        f"Ваши настройки автоматически сохранены и будут восстановлены "
+                        f"при следующем запуске бота."
                     )
                 else:
                     await query.edit_message_text(
-                        "Не удалось получить текущую конфигурацию модели."
+                        "❌ Не удалось получить текущую конфигурацию модели."
                     )
 
         else:

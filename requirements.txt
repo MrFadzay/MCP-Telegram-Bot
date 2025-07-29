@@ -8,3 +8,5 @@ openai
 nest_asyncio
 jsonrpyc
 httpx-sse
+sqlalchemy>=2.0.0
+aiosqlite

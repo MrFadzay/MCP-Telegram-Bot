@@ -1,6 +1,6 @@
 import google.generativeai as genai
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from .api import LLMClient, LLMResponse, ToolCall
 from bot.llm_utils import ToolInfo
 import os
@@ -71,7 +71,8 @@ class GoogleClient(LLMClient):
             logger.error(f"Ошибка при получении моделей из Google AI API: {e}")
 
     async def generate_response(
-        self, prompt: str, model: str, tools: List[ToolInfo]
+        self, prompt: str, model: str, tools: List[ToolInfo],
+        conversation_history: Optional[List[Dict[str, Any]]] = None
     ) -> LLMResponse:
         """Генерирует ответ от модели Google Gemini."""
         logger.info(f"Генерация ответа для запроса: {prompt[:100]}...")
@@ -119,7 +120,17 @@ class GoogleClient(LLMClient):
                 model_name=model, tools=gemini_tools if gemini_tools else None
             )
 
-            convo = model_instance.start_chat(history=[])
+            # Преобразуем историю в формат Gemini
+            gemini_history = []
+            if conversation_history:
+                for msg in conversation_history[:-1]:  # Исключаем последнее сообщение (текущий prompt)
+                    role = "user" if msg["role"] == "user" else "model"
+                    gemini_history.append({
+                        "role": role,
+                        "parts": [{"text": msg["content"]}]
+                    })
+
+            convo = model_instance.start_chat(history=gemini_history)
             logger.info("Sending message to Gemini API...")
             response = convo.send_message(enhanced_prompt)
             logger.info(

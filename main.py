@@ -4,6 +4,7 @@ import os
 import subprocess
 import platform
 import traceback
+import logging
 from telegram import Update
 from asyncio.windows_events import WindowsProactorEventLoopPolicy
 from bot.bot import TelegramBot
@@ -11,6 +12,9 @@ from llm.ollama import OllamaClient
 from llm.google import GoogleClient
 from llm.openai import OpenAIClient
 from mcp_client.client import StdioMCPClient
+from bot.database.database import init_database, close_database
+
+logger = logging.getLogger(__name__)
 
 
 async def register_mcp_servers(llm_selector):
@@ -98,7 +102,16 @@ async def register_mcp_servers(llm_selector):
                   f"{e}\n{traceback.format_exc()}")
 
 
-async def setup_bot_application():
+async def setup_bot():
+    # Initialize database first
+    print("Initializing database...")
+    try:
+        await init_database()
+        print("Database initialized successfully")
+    except Exception as e:
+        print(f"Failed to initialize database: {e}")
+        raise
+    
     bot = TelegramBot()
 
     bot.llm_selector.provider_manager.register_provider(OllamaClient)
@@ -106,33 +119,35 @@ async def setup_bot_application():
     bot.llm_selector.provider_manager.register_provider(OpenAIClient)
 
     await register_mcp_servers(bot.llm_selector)
-    return bot.application
+    return bot
 
 
 async def main():
-    application = await setup_bot_application()
-    if application is None:
-        print("Ошибка: Не удалось инициализировать приложение бота. "
+    bot = await setup_bot()
+    if bot is None:
+        print("Ошибка: Не удалось инициализировать бота. "
               "Завершение работы.")
         return
 
-    print("Бот запущен...")
+    print("Запускаем бота...")
 
     try:
-        await application.initialize()
-        await application.start()
-        await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
-
+        await bot.start()
         print("Бот работает и ждет команд... Нажмите Ctrl+C для остановки.")
-
         await asyncio.Future()
 
+    except KeyboardInterrupt:
+        print("\nПолучен сигнал остановки...")
     finally:
-        print("\nПолучен сигнал остановки, корректно завершаем работу...")
-        if application.updater and application.updater.running:
-            await application.updater.stop()
-        if application.running:
-            await application.stop()
+        print("Корректно завершаем работу...")
+        await bot.stop()
+        
+        # Close database connections
+        try:
+            await close_database()
+        except Exception as e:
+            logger.error(f"Error closing database: {e}")
+        
         print("Ресурсы бота успешно освобождены.")
 
 
