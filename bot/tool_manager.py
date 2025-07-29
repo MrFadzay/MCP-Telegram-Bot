@@ -109,6 +109,8 @@ class ToolManager:
         """
         Выполняет определенный инструмент на MCP сервере или мета-инструмент.
         """
+        logger.info(f"Executing tool '{tool_name}' on server '{server_name}' with args: {arguments}")
+        
         if server_name == "meta" and tool_name == "list_mcp_tools":
             # Обработка вызова мета-инструмента
             all_tools = await self.get_available_mcp_tools()
@@ -130,7 +132,55 @@ class ToolManager:
         if not mcp_client:
             raise ValueError(f"MCP server '{server_name}' not registered.")
 
-        return await mcp_client.execute_tool(tool_name, arguments)
+        # Проверяем и преобразуем аргументы если необходимо
+        if not isinstance(arguments, dict):
+            logger.warning(f"Arguments are not dict, type: {type(arguments)}, converting...")
+            try:
+                if hasattr(arguments, '_pb'):
+                    # Protobuf объект
+                    arguments = dict(arguments)
+                else:
+                    arguments = dict(arguments)
+            except Exception as e:
+                logger.error(f"Failed to convert arguments: {e}")
+                return {"error": f"Invalid arguments format: {type(arguments)}"}
+
+        # Исправляем распространенные ошибки в аргументах для brave_web_search
+        if tool_name == "brave_web_search":
+            # Если LLM использует 'q' вместо 'query', исправляем
+            if 'q' in arguments and 'query' not in arguments:
+                arguments['query'] = arguments.pop('q')
+                logger.info(f"Fixed argument: changed 'q' to 'query' for brave_web_search")
+            
+            # Убеждаемся, что есть обязательный параметр query
+            if 'query' not in arguments:
+                logger.error(f"Missing required 'query' parameter for brave_web_search")
+                return {"error": "Missing required 'query' parameter"}
+
+        result = await mcp_client.execute_tool(tool_name, arguments)
+        logger.info(f"Tool execution result: {result}")
+        
+        # Обрабатываем результат в зависимости от структуры ответа MCP
+        if isinstance(result, dict):
+            if "content" in result:
+                # MCP возвращает результат в поле content
+                content = result["content"]
+                if isinstance(content, list) and len(content) > 0:
+                    # Если content - это список, извлекаем текст из первого элемента
+                    if isinstance(content[0], dict) and "text" in content[0]:
+                        return {"result": content[0]["text"]}
+                    else:
+                        return {"result": str(content[0])}
+                elif isinstance(content, str):
+                    return {"result": content}
+                else:
+                    return {"result": str(content)}
+            elif "result" in result:
+                return result
+            else:
+                return {"result": result}
+        else:
+            return {"result": result}
 
     async def get_mcp_stderr_messages(self, server_name: str) -> List[str]:
         """

@@ -35,8 +35,54 @@ class CommandHandlers:
     /start - Начать разговор
     /help - Показать это сообщение
     /select - Выбрать провайдера и модель LLM
+    /tools - Показать доступные MCP инструменты
             """
             await update.message.reply_text(help_text)
+        else:
+            logger.warning(
+                f"Получено обновление без сообщения: {update}")
+            return
+            
+    async def tools_command(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработчик команды /tools - показывает доступные MCP инструменты"""
+        if update.message:
+            try:
+                tools = await self.llm_selector.get_available_mcp_tools()
+                
+                if not tools:
+                    await update.message.reply_text(
+                        "В данный момент нет доступных MCP инструментов. "
+                        "Возможно, MCP серверы не запущены или не настроены."
+                    )
+                    return
+                
+                # Фильтруем мета-инструмент
+                tools = [tool for tool in tools 
+                         if not (tool.server_name == "meta" and 
+                                 tool.tool_name == "list_mcp_tools")]
+                
+                if not tools:
+                    await update.message.reply_text(
+                        "В данный момент нет доступных MCP инструментов. "
+                        "Возможно, MCP серверы не запущены или не настроены."
+                    )
+                    return
+                
+                tools_text = "Доступные MCP инструменты:\n\n"
+                for tool in tools:
+                    tools_text += f"📌 {tool.server_name}/{tool.tool_name}\n"
+                    tools_text += f"   {tool.description}\n\n"
+                
+                tools_text += ("\nДля использования этих инструментов просто задайте вопрос, "
+                              "и LLM автоматически выберет подходящий инструмент, если необходимо.")
+                
+                await update.message.reply_text(tools_text)
+            except Exception as e:
+                logger.error(f"Ошибка при получении списка MCP инструментов: {e}")
+                await update.message.reply_text(
+                    "Произошла ошибка при получении списка MCP инструментов."
+                )
         else:
             logger.warning(
                 f"Получено обновление без сообщения: {update}")

@@ -37,9 +37,15 @@ class TelegramBot:
             "help", self.command_handlers.help_command))
         self.application.add_handler(CommandHandler(
             "select", self.command_handlers.select_provider_command))
+        self.application.add_handler(CommandHandler(
+            "tools", self.command_handlers.tools_command))
         self.application.add_handler(CallbackQueryHandler(
             self.callback_handlers.button_callback))
         self.application.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND, self.message_handlers.handle_message))
         self.application.add_handler(MessageHandler(
             filters.PHOTO, self.message_handlers.handle_photo))
+        self.application.add_handler(MessageHandler(
+            filters.VOICE, self.message_handlers.handle_voice))
+        self.application.add_handler(MessageHandler(
+            filters.Document, self.message_handlers.handle_document))
