@@ -1,16 +1,21 @@
 """
 Конфигурация pytest для тестов MCP Telegram Bot.
 """
+from bot.database.models import User, Session, Message
+from bot.database.database import Base
+import sys
+import os
 import pytest
 import asyncio
 import tempfile
-import os
 from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from unittest.mock import AsyncMock, MagicMock
 
-from bot.database.database import Base
-from bot.database.models import User, Session, Message
+# Добавляем корневую директорию проекта в sys.path
+# Это позволяет pytest находить модули bot, llm, mcp_client и т.д.
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..')))
 
 
 @pytest.fixture(scope="session")

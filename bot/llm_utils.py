@@ -52,7 +52,18 @@ class LLMSelector:
         if not self.provider_manager.current_provider or not self.provider_manager.current_model:
             raise ValueError("Провайдер или модель не выбраны")
 
-        provider = self.provider_manager.get_provider_instance(self.provider_manager.current_provider)
+        provider = self.provider_manager.get_provider_instance(
+            self.provider_manager.current_provider)
+
+        # Получаем историю разговора ПЕРЕД сохранением текущего сообщения
+        conversation_history = []
+        if user_id:
+            conversation_history = await self.history_service.get_conversation_history(
+                user_id=user_id,
+                limit=10  # Ограничиваем количество сообщений для контекста
+            )
+            logger.info(
+                f"Retrieved conversation history for user {user_id}: {len(conversation_history)} messages")
 
         # Сохраняем пользовательское сообщение в историю
         if user_id:
@@ -61,16 +72,8 @@ class LLMSelector:
                 message_text=prompt,
                 message_type="user"
             )
-        
-        available_tools = await self.get_available_mcp_tools()
 
-        # Получаем историю разговора
-        conversation_history = []
-        if user_id:
-            conversation_history = await self.history_service.get_conversation_history(
-                user_id=user_id,
-                limit=10  # Ограничиваем количество сообщений для контекста
-            )
+        available_tools = await self.get_available_mcp_tools()
 
         # --- Start of multi-step tool call logic ---
         MAX_TOOL_CALL_ITERATIONS = 3
@@ -82,7 +85,7 @@ class LLMSelector:
             # Ожидается, что LLM поймет, как их использовать.
             response = await provider.generate_response(
                 current_prompt, self.provider_manager.current_model, available_tools,
-                conversation_history if i == 0 else None  # Передаем историю только в первой итерации
+                conversation_history  # Передаем историю во всех итерациях для сохранения контекста
             )
 
             if isinstance(response, ToolCall):
@@ -103,7 +106,8 @@ class LLMSelector:
                             tool_result = {"result": tool_result,
                                            "stderr_output": stderr_messages}
 
-                    tool_output_str = json.dumps(tool_result, ensure_ascii=False)
+                    tool_output_str = json.dumps(
+                        tool_result, ensure_ascii=False)
                     if len(tool_output_str) > MAX_TOOL_OUTPUT_LENGTH:
                         tool_output_str = (
                             tool_output_str[:MAX_TOOL_OUTPUT_LENGTH] +
@@ -146,7 +150,8 @@ class LLMSelector:
                 # Если LLM не запросил инструмент, это окончательный ответ
                 # Сохраняем ответ ассистента в историю
                 if user_id:
-                    response_text = response.text if hasattr(response, 'text') else str(response)
+                    response_text = response.text if hasattr(
+                        response, 'text') else str(response)
                     await self.history_service.save_message(
                         user_id=user_id,
                         message_text=response_text,
@@ -167,10 +172,11 @@ class LLMSelector:
                  "инструментов и не смог сформировать окончательный ответ. "
                  "Пожалуйста, переформулируйте ваш запрос или попробуйте позже."
         )
-        
+
         # Сохраняем ответ ассистента в историю
         if user_id:
-            response_text = final_response.text if hasattr(final_response, 'text') else str(final_response)
+            response_text = final_response.text if hasattr(
+                final_response, 'text') else str(final_response)
             await self.history_service.save_message(
                 user_id=user_id,
                 message_text=response_text,
@@ -181,7 +187,7 @@ class LLMSelector:
                     "tool_calls": len(tool_output_history)
                 }
             )
-        
+
         return final_response
         # --- Конец логики многошагового вызова инструмента ---
 
@@ -191,7 +197,8 @@ class LLMSelector:
         if not self.provider_manager.current_provider or not self.provider_manager.current_model:
             raise ValueError("Провайдер или модель не выбраны")
 
-        provider = self.provider_manager.get_provider_instance(self.provider_manager.current_provider)
+        provider = self.provider_manager.get_provider_instance(
+            self.provider_manager.current_provider)
         if not hasattr(provider, 'generate_response_with_image'):
             raise NotImplementedError(
                 f'Провайдер {self.provider_manager.current_provider} не поддерживает '

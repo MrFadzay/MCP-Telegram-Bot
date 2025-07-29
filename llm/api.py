@@ -14,7 +14,7 @@ class LLMClient(ABC):
 
     @abstractmethod
     async def generate_response(
-        self, prompt: str, model: str, tools: List[ToolInfo], 
+        self, prompt: str, model: str, tools: List[ToolInfo],
         conversation_history: Optional[List[Dict[str, Any]]] = None
     ) -> LLMResponse:
         """Генерирует ответ используя выбранную модель"""

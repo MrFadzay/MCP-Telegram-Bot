@@ -154,32 +154,34 @@ class StdioMCPClient(BaseMCPClient):
         self.process = process
         self._stderr_queue: asyncio.Queue = asyncio.Queue()
         self.server_name: Optional[str] = None
-        
+
         self._next_id = 1
         self._pending_requests = {}
         self._lock = asyncio.Lock()
         self._initialized = False
-        
+
         # Запускаем задачу для чтения ответов
         self._reader_task = asyncio.create_task(self._read_responses())
-        
+
     async def _read_responses(self):
         """Читает и обрабатывает ответы от процесса."""
         while True:
             try:
                 line = await self.process.stdout.readline()
                 if not line:
-                    print(f"Stdio MCP server '{self.server_name}' closed stdout")
+                    print(
+                        f"Stdio MCP server '{self.server_name}' closed stdout")
                     break
-                    
+
                 try:
                     line_str = line.decode('utf-8').strip()
                     if not line_str:
                         continue
-                        
-                    print(f"DEBUG: Raw response from {self.server_name}: {line_str}")
+
+                    print(
+                        f"DEBUG: Raw response from {self.server_name}: {line_str}")
                     response = json.loads(line_str)
-                    
+
                     # Обрабатываем ответ JSON-RPC
                     if "id" in response and response["id"] in self._pending_requests:
                         request_id = response["id"]
@@ -187,11 +189,14 @@ class StdioMCPClient(BaseMCPClient):
                         if "result" in response:
                             future.set_result(response["result"])
                         elif "error" in response:
-                            future.set_exception(Exception(str(response["error"])))
+                            future.set_exception(
+                                Exception(str(response["error"])))
                     else:
-                        print(f"DEBUG: Received notification or unknown response: {response}")
+                        print(
+                            f"DEBUG: Received notification or unknown response: {response}")
                 except json.JSONDecodeError:
-                    print(f"ERROR: Failed to parse JSON response: {line.decode('utf-8', errors='replace')}")
+                    print(
+                        f"ERROR: Failed to parse JSON response: {line.decode('utf-8', errors='replace')}")
                 except Exception as e:
                     print(f"ERROR: Error processing response: {e}")
             except asyncio.CancelledError:
@@ -200,12 +205,12 @@ class StdioMCPClient(BaseMCPClient):
             except Exception as e:
                 print(f"ERROR: Error reading from stdout: {e}")
                 break
-    
+
     async def _initialize_connection(self):
         """Инициализирует MCP соединение с handshake."""
         if self._initialized:
             return
-            
+
         try:
             # Отправляем initialize запрос
             init_result = await self._send_request("initialize", {
@@ -221,19 +226,21 @@ class StdioMCPClient(BaseMCPClient):
                     "version": "1.0.0"
                 }
             })
-            
-            print(f"DEBUG: Initialize result for {self.server_name}: {init_result}")
-            
+
+            print(
+                f"DEBUG: Initialize result for {self.server_name}: {init_result}")
+
             # Отправляем initialized уведомление
             await self._send_notification("initialized", {})
-            
+
             self._initialized = True
             print(f"DEBUG: MCP connection initialized for {self.server_name}")
-            
+
         except Exception as e:
-            print(f"ERROR: Failed to initialize MCP connection for {self.server_name}: {e}")
+            print(
+                f"ERROR: Failed to initialize MCP connection for {self.server_name}: {e}")
             raise
-    
+
     async def _send_notification(self, method: str, params=None):
         """Отправляет уведомление JSON-RPC (без ожидания ответа)."""
         async with self._lock:
@@ -242,35 +249,37 @@ class StdioMCPClient(BaseMCPClient):
                 "method": method,
                 "params": params or {}
             }
-            
+
             request_json = json.dumps(request) + "\n"
-            print(f"DEBUG: Sending notification to {self.server_name}: {request_json.strip()}")
+            print(
+                f"DEBUG: Sending notification to {self.server_name}: {request_json.strip()}")
             self.process.stdin.write(request_json.encode('utf-8'))
             await self.process.stdin.drain()
-                
+
     async def _send_request(self, method: str, params=None):
         """Отправляет запрос JSON-RPC и возвращает результат."""
         async with self._lock:
             request_id = self._next_id
             self._next_id += 1
-            
+
             request = {
                 "jsonrpc": "2.0",
                 "method": method,
                 "params": params or {},
                 "id": request_id
             }
-            
+
             # Создаем future для ожидания ответа
             future = asyncio.Future()
             self._pending_requests[request_id] = future
-            
+
             # Отправляем запрос
             request_json = json.dumps(request) + "\n"
-            print(f"DEBUG: Sending request to {self.server_name}: {request_json.strip()}")
+            print(
+                f"DEBUG: Sending request to {self.server_name}: {request_json.strip()}")
             self.process.stdin.write(request_json.encode('utf-8'))
             await self.process.stdin.drain()
-        
+
         # Ждем ответ с таймаутом
         try:
             return await asyncio.wait_for(future, timeout=30)
@@ -287,7 +296,7 @@ class StdioMCPClient(BaseMCPClient):
             try:
                 # Сначала инициализируем соединение
                 await self._initialize_connection()
-                
+
                 # Затем пытаемся получить список инструментов как проверку работоспособности
                 await self.list_tools()
                 print(f"Stdio MCP server '{self.server_name}' is ready.")
@@ -295,7 +304,8 @@ class StdioMCPClient(BaseMCPClient):
             except Exception as e:
                 print(f"Stdio MCP server '{self.server_name}' not ready yet, "
                       f"retrying... Error: {e}")
-                await asyncio.sleep(1)  # Ждем 1 секунду перед повторной попыткой
+                # Ждем 1 секунду перед повторной попыткой
+                await asyncio.sleep(1)
         print(f"Stdio MCP server '{self.server_name}' did not become ready "
               f"within {timeout} seconds.")
         return False
@@ -316,7 +326,7 @@ class StdioMCPClient(BaseMCPClient):
         try:
             if not self._initialized:
                 await self._initialize_connection()
-                
+
             response = await self._send_request("tools/list")
             print(f"DEBUG: Received response for list_tools: {response}")
             return response.get("tools", [])
@@ -329,7 +339,7 @@ class StdioMCPClient(BaseMCPClient):
         try:
             if not self._initialized:
                 await self._initialize_connection()
-                
+
             response = await self._send_request("resources/list")
             print(f"DEBUG: Received response for list_resources: {response}")
             return response.get("resources", [])
@@ -345,7 +355,7 @@ class StdioMCPClient(BaseMCPClient):
         try:
             if not self._initialized:
                 await self._initialize_connection()
-                
+
             response = await self._send_request("tools/call", {
                 "name": tool_name,
                 "arguments": arguments
@@ -361,7 +371,7 @@ class StdioMCPClient(BaseMCPClient):
         try:
             if not self._initialized:
                 await self._initialize_connection()
-                
+
             response = await self._send_request("resources/read", {"uri": uri})
             print(f"DEBUG: Received response for access_resource: {response}")
             return response
@@ -378,14 +388,14 @@ class StdioMCPClient(BaseMCPClient):
                 await self._reader_task
             except asyncio.CancelledError:
                 pass
-            
+
         if self.process:
             try:
                 # Сначала пытаемся корректно закрыть stdin
                 if self.process.stdin and not self.process.stdin.is_closing():
                     self.process.stdin.close()
                     await self.process.stdin.wait_closed()
-                
+
                 # Даем процессу время на корректное завершение
                 await asyncio.wait_for(self.process.wait(), timeout=3)
             except asyncio.TimeoutError:
@@ -395,7 +405,8 @@ class StdioMCPClient(BaseMCPClient):
                 try:
                     await asyncio.wait_for(self.process.wait(), timeout=2)
                 except asyncio.TimeoutError:
-                    print(f"WARNING: Process for '{self.server_name}' still running after kill")
+                    print(
+                        f"WARNING: Process for '{self.server_name}' still running after kill")
             except Exception as e:
                 print(f"DEBUG: Exception during process cleanup: {e}")
                 # Принудительно завершаем процесс

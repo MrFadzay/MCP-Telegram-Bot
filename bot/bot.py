@@ -68,7 +68,7 @@ class TelegramBot:
             BotCommand("history", "📊 Статистика текущей сессии"),
             BotCommand("clear", "🗑️ Очистить историю диалога"),
         ]
-        
+
         try:
             await self.application.bot.set_my_commands(commands)
             logger.info("✅ Команды успешно установлены в меню Telegram")
@@ -80,16 +80,16 @@ class TelegramBot:
         try:
             # Инициализируем приложение
             await self.application.initialize()
-            
+
             # Устанавливаем команды
             await self._setup_commands()
-            
+
             # Запускаем бота
             await self.application.start()
             await self.application.updater.start_polling()
-            
+
             logger.info("🤖 Бот запущен и готов к работе!")
-            
+
         except Exception as e:
             logger.error(f"❌ Ошибка при запуске бота: {e}")
             raise

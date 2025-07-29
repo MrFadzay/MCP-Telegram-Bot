@@ -16,7 +16,8 @@ async def download_photo(update: Update) -> str:
     except Exception as e:
         logger.error(f"Ошибка при скачивании фото: {e}")
         raise
-        
+
+
 async def download_voice(update: Update) -> str:
     """Скачивание голосового сообщения во временный файл."""
     try:
@@ -27,14 +28,15 @@ async def download_voice(update: Update) -> str:
     except Exception as e:
         logger.error(f"Ошибка при скачивании голосового сообщения: {e}")
         raise
-        
+
+
 async def download_document(update: Update) -> tuple[str, str]:
     """Скачивание документа во временный файл и возвращение пути и имени файла."""
     try:
         document = update.message.document
         file_name = document.file_name
         file_extension = os.path.splitext(file_name)[1] if file_name else ""
-        
+
         document_file = await document.get_file()
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
             await document_file.download_to_drive(temp_file.name)

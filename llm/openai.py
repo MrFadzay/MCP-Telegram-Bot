@@ -39,8 +39,8 @@ class OpenAIClient(LLMClient):
     def get_available_models(self) -> List[str]:
         return self._available_models
 
-    async def generate_response(self, prompt: str, model: str, tools: List[ToolInfo], 
-                               conversation_history: Optional[List[Dict[str, Any]]] = None) -> LLMResponse:
+    async def generate_response(self, prompt: str, model: str, tools: List[ToolInfo],
+                                conversation_history: Optional[List[Dict[str, Any]]] = None) -> LLMResponse:
         # Формируем сообщения с учетом истории
         messages = []
         if conversation_history:
@@ -49,7 +49,7 @@ class OpenAIClient(LLMClient):
                 if role == "assistant":
                     role = "assistant"
                 messages.append({"role": role, "content": msg["content"]})
-        
+
         # Добавляем текущий prompt
         messages.append({"role": "user", "content": prompt})
         try:

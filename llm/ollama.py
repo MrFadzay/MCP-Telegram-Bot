@@ -70,7 +70,8 @@ class OllamaClient(LLMClient):
                 history_prompt = ""
                 if conversation_history:
                     history_prompt = "\n\nИстория разговора:\n"
-                    for msg in conversation_history[:-5]:  # Берем последние 5 сообщений для контекста
+                    # Берем последние 5 сообщений для контекста
+                    for msg in conversation_history[:-5]:
                         role = "Пользователь" if msg["role"] == "user" else "Ассистент"
                         history_prompt += f"{role}: {msg['content']}\n"
                     history_prompt += "\nТекущий запрос:\n"

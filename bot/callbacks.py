@@ -43,7 +43,7 @@ class CallbackHandlers:
             data = query.data
             if not data:
                 return
-                
+
             if data.startswith("provider_"):
                 provider = data.split("_")[1]
                 user_id = query.from_user.id

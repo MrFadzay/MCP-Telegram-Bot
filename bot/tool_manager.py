@@ -109,8 +109,9 @@ class ToolManager:
         """
         Выполняет определенный инструмент на MCP сервере или мета-инструмент.
         """
-        logger.info(f"Executing tool '{tool_name}' on server '{server_name}' with args: {arguments}")
-        
+        logger.info(
+            f"Executing tool '{tool_name}' on server '{server_name}' with args: {arguments}")
+
         if server_name == "meta" and tool_name == "list_mcp_tools":
             # Обработка вызова мета-инструмента
             all_tools = await self.get_available_mcp_tools()
@@ -134,7 +135,8 @@ class ToolManager:
 
         # Проверяем и преобразуем аргументы если необходимо
         if not isinstance(arguments, dict):
-            logger.warning(f"Arguments are not dict, type: {type(arguments)}, converting...")
+            logger.warning(
+                f"Arguments are not dict, type: {type(arguments)}, converting...")
             try:
                 if hasattr(arguments, '_pb'):
                     # Protobuf объект
@@ -150,16 +152,18 @@ class ToolManager:
             # Если LLM использует 'q' вместо 'query', исправляем
             if 'q' in arguments and 'query' not in arguments:
                 arguments['query'] = arguments.pop('q')
-                logger.info(f"Fixed argument: changed 'q' to 'query' for brave_web_search")
-            
+                logger.info(
+                    f"Fixed argument: changed 'q' to 'query' for brave_web_search")
+
             # Убеждаемся, что есть обязательный параметр query
             if 'query' not in arguments:
-                logger.error(f"Missing required 'query' parameter for brave_web_search")
+                logger.error(
+                    f"Missing required 'query' parameter for brave_web_search")
                 return {"error": "Missing required 'query' parameter"}
 
         result = await mcp_client.execute_tool(tool_name, arguments)
         logger.info(f"Tool execution result: {result}")
-        
+
         # Обрабатываем результат в зависимости от структуры ответа MCP
         if isinstance(result, dict):
             if "content" in result:

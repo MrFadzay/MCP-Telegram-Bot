@@ -2,7 +2,7 @@
 User service for managing user data and preferences.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,11 +28,11 @@ class UserService:
             result = await session.execute(
                 select(User).where(User.user_id == user_id)
             )
-            user = result.scalar_one_or_none()
+            user = await result.scalar_one_or_none()
 
             if user:
                 # Update last activity
-                user.last_activity = datetime.utcnow()
+                user.last_activity = datetime.now(timezone.utc)
 
                 # Update user info if provided
                 if telegram_user:
@@ -48,7 +48,7 @@ class UserService:
             # Create new user
             user_data = {
                 "user_id": user_id,
-                "last_activity": datetime.utcnow()
+                "last_activity": datetime.now(timezone.utc)
             }
 
             if telegram_user:
@@ -85,7 +85,7 @@ class UserService:
         """Update user's LLM provider and model settings."""
         try:
             async with get_async_db_session() as session:
-                update_data = {"updated_at": datetime.utcnow()}
+                update_data = {"updated_at": datetime.now(timezone.utc)}
 
                 if provider is not None:
                     update_data["llm_provider"] = provider
@@ -124,7 +124,7 @@ class UserService:
         """Update user's personalization settings."""
         try:
             async with get_async_db_session() as session:
-                update_data = {"updated_at": datetime.utcnow()}
+                update_data = {"updated_at": datetime.now(timezone.utc)}
 
                 if response_style is not None:
                     if response_style not in ["concise", "balanced", "detailed"]:
@@ -193,7 +193,7 @@ class UserService:
                 await session.execute(
                     update(User)
                     .where(User.user_id == user_id)
-                    .values(last_activity=datetime.utcnow())
+                    .values(last_activity=datetime.now(timezone.utc))
                 )
                 await session.commit()
         except Exception as e:
@@ -209,10 +209,11 @@ class UserService:
                 total_users_result = await session.execute(
                     select(User.user_id).count()
                 )
-                total_users = total_users_result.scalar()
+                total_users = await total_users_result.scalar()
 
                 # Active users (last 7 days)
-                week_ago = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                week_ago = datetime.now(timezone.utc).replace(
+                    hour=0, minute=0, second=0, microsecond=0)
                 week_ago = week_ago.replace(day=week_ago.day - 7)
 
                 active_users_result = await session.execute(
